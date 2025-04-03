@@ -16,6 +16,16 @@
     </properties>
 
     <dependencies>
+    <dependency>
+    <groupId>io.vertx</groupId>
+    <artifactId>vertx-web-client</artifactId>
+    <version>4.4.0</version>
+</dependency>
+<dependency>
+    <groupId>io.github.cdimascio</groupId>
+    <artifactId>dotenv-java</artifactId>
+    <version>2.2.0</version>
+</dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
@@ -38,7 +48,7 @@
     <artifactId>vertx-jdbc-client</artifactId>
     <version>4.5.7</version>
   </dependency>
-  <!-- MySQL Connector -->
+  
   <dependency>
     <groupId>mysql</groupId>
     <artifactId>mysql-connector-java</artifactId>
@@ -58,6 +68,11 @@
     <groupId>org.glassfish.jaxb</groupId>
     <artifactId>jaxb-runtime</artifactId>
     <version>2.3.1</version>
+</dependency>
+<dependency>
+    <groupId>com.stripe</groupId>
+    <artifactId>stripe-java</artifactId>
+    <version>22.1.0</version>
 </dependency>
     </dependencies>
 
