@@ -36,7 +36,7 @@ public class RouteHandler {
   
     private static final String CALLBACK_URL= "https://localhost:4200/login";
     
-    private static final String FRONT_URL = "https://localhost:4200/admin";
+    private static final String FRONT_URL = "https://localhost:4200/success";
     private static final String CHAPA_KEY = "CHASECK_TEST-Tpq7R6XJTHUlyEJaQpXcW7BPdBOwNxp3";
 
   public Router setupRoutes(Vertx vertx) {
@@ -269,8 +269,8 @@ private void getProductsById(RoutingContext context) {
 
   private void addProduct(RoutingContext context) {
     JsonObject body = context.getBodyAsJson();
-    executeQuery("INSERT INTO products (name, price) VALUES (?, ?)",
-                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")),
+    executeQuery("INSERT INTO products (name, price, description, image) VALUES (?, ?,?,?)",
+                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getString("description")).add(body.getString("image")),
                  context, "Product added");
   }
 
