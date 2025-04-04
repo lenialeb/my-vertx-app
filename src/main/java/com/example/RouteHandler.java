@@ -277,8 +277,8 @@ private void getProductsById(RoutingContext context) {
   private void updateProduct(RoutingContext context) {
     String id = context.pathParam("id");
     JsonObject body = context.getBodyAsJson();
-    executeQuery("UPDATE products SET name = ?, price = ? WHERE id = ?",
-                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(id),
+    executeQuery("UPDATE products SET name = ?, price = ?, description = ?, image = ?  WHERE id = ?",
+                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getString("description")).add(body.getString("image")).add(id),
                  context, "Product updated");
   }
 
