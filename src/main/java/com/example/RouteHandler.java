@@ -53,6 +53,7 @@ public class RouteHandler {
     router.put("/products/:id").handler(this::updateProduct);
     router.get("/productId/:id").handler(this::getProductsById);
     router.get("/userId/:id").handler(this::getusersById);
+    router.get("/productCategory/:category").handler(this::getProductsByCategoy);
     router.delete("/products/:id").handler(this::deleteProduct);
     router.get("/users").handler(this::getUsers);
     router.post("/users").handler(this::addUser);
@@ -256,6 +257,16 @@ private void getProductsById(RoutingContext context) {
       }
     });
   }
+  private void getProductsByCategoy(RoutingContext context) {
+    String category = context.pathParam("category");
+    jdbcClient.queryWithParams("SELECT * FROM products WHERE category = ? ", new JsonArray().add(category), res -> {
+      if (res.succeeded()) {
+        context.response().end(new JsonArray(res.result().getRows()).encodePrettily());
+      } else {
+        context.response().setStatusCode(500).end(res.cause().getMessage());
+      }
+    });
+  }
  private void getusersById(RoutingContext context) {
     String id = context.pathParam("id");
     jdbcClient.queryWithParams("SELECT * FROM user WHERE id = ?", new JsonArray().add(id), res -> {
@@ -269,16 +280,16 @@ private void getProductsById(RoutingContext context) {
 
   private void addProduct(RoutingContext context) {
     JsonObject body = context.getBodyAsJson();
-    executeQuery("INSERT INTO products (name, price, description, image) VALUES (?, ?,?,?)",
-                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getString("description")).add(body.getString("image")),
+    executeQuery("INSERT INTO products (name, price, description,category, image) VALUES (?, ?,?,?,?)",
+                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getString("description")).add(body.getString("category")).add(body.getString("image")),
                  context, "Product added");
   }
 
   private void updateProduct(RoutingContext context) {
     String id = context.pathParam("id");
     JsonObject body = context.getBodyAsJson();
-    executeQuery("UPDATE products SET name = ?, price = ?, description = ?, image = ?  WHERE id = ?",
-                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getString("description")).add(body.getString("image")).add(id),
+    executeQuery("UPDATE products SET name = ?, price = ?, description = ?,category = ?, image = ?  WHERE id = ?",
+                 new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getString("description")).add(body.getString("category")).add(body.getString("image")).add(id),
                  context, "Product updated");
   }
 
