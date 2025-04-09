@@ -55,6 +55,9 @@ public class RouteHandler {
 
     OrderHandler orderHandler = new OrderHandler(jdbcClient);
     orderHandler.setupRoutes(router);
+
+    CommentHandler commentHandler = new CommentHandler(jdbcClient);
+    commentHandler.setupRoutes(router);
   
 
 

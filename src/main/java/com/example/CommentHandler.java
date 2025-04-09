@@ -14,54 +14,54 @@ public class CommentHandler {
     }
 
     public void setupRoutes(Router router) {
-        router.post("/comment/:id").handler(this:: postComment);
-        router.get("/comment/:id").handler(this:: getCommentById);
+        router.post("/comment/:id").handler(this::postComment);
+        router.get("/comment/:id").handler(this::getCommentById);
     }
 
     private void getCommentById(RoutingContext context) {
         String productId = context.request().getParam("id");
         String sql = "SELECT * FROM comments WHERE product_id = ?";
-        
+
         jdbcClient.queryWithParams(sql, new JsonArray().add(Integer.parseInt(productId)), result -> {
             if (result.succeeded()) {
                 JsonArray comments = new JsonArray();
                 result.result().getRows().forEach(comments::add);
                 context.response()
-                    .putHeader("Content-Type", "application/json")
-                    .end(comments.encode());
+                        .putHeader("Content-Type", "application/json")
+                        .end(comments.encode());
             } else {
                 context.response()
-                    .setStatusCode(500)
-                    .putHeader("Content-Type", "application/json")
-                    .end(new JsonObject().put("error", result.cause().getMessage()).encode());
+                        .setStatusCode(500)
+                        .putHeader("Content-Type", "application/json")
+                        .end(new JsonObject().put("error", result.cause().getMessage()).encode());
             }
         });
     }
+
     private void postComment(RoutingContext context) {
-      String productId = context.request().getParam("id");
-      
-      JsonObject comment = context.getBodyAsJson();
-      
-      String sql = "INSERT INTO comments (product_id, user_name, content) VALUES (?, ?, ?)";
-      
-      jdbcClient.updateWithParams(sql, new JsonArray()
-          .add(Integer.parseInt(productId))
-          .add(comment.getString("userName"))
-          .add(comment.getString("content")), // Remove the date parameter
-          result -> {
-              if (result.succeeded()) {
-                  context.response()
-                      .setStatusCode(201)
-                      .putHeader("Content-Type", "application/json")
-                      .end(new JsonObject().put("message", "Comment added").encode());
-              } else {
-                  context.response()
-                      .setStatusCode(500)
-                      .putHeader("Content-Type", "application/json")
-                      .end(new JsonObject().put("error", "Failed to add comment").encode());
-              }
-          });
+        String productId = context.request().getParam("id");
+
+        JsonObject comment = context.getBodyAsJson();
+
+        String sql = "INSERT INTO comments (product_id, user_name, content) VALUES (?, ?, ?)";
+
+        jdbcClient.updateWithParams(sql, new JsonArray()
+                .add(Integer.parseInt(productId))
+                .add(comment.getString("userName"))
+                .add(comment.getString("content")),
+                result -> {
+                    if (result.succeeded()) {
+                        context.response()
+                                .setStatusCode(201)
+                                .putHeader("Content-Type", "application/json")
+                                .end(new JsonObject().put("message", "Comment added").encode());
+                    } else {
+                        context.response()
+                                .setStatusCode(500)
+                                .putHeader("Content-Type", "application/json")
+                                .end(new JsonObject().put("error", "Failed to add comment").encode());
+                    }
+                });
     }
 
-    // Implement other methods: addProduct, updateProduct, deleteProduct
 }
