@@ -50,6 +50,7 @@ public class RouteHandler {
 
     ProductHandler productHandler = new ProductHandler(jdbcClient);
     productHandler.setupRoutes(router);
+    
     PaymentHandler paymentHandler = new PaymentHandler(jdbcClient, vertx);
     paymentHandler.setupRoutes(router);
 
@@ -59,9 +60,6 @@ public class RouteHandler {
     CommentHandler commentHandler = new CommentHandler(jdbcClient);
     commentHandler.setupRoutes(router);
   
-
-
-    
     return router;
   }
   
