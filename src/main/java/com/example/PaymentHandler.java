@@ -3,6 +3,7 @@ package com.example;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.client.WebClient;
+import io.github.cdimascio.dotenv.Dotenv;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.vertx.core.AsyncResult;
@@ -18,15 +19,30 @@ public class PaymentHandler {
 
     private final SQLClient jdbcClient;
     private final Vertx vertx;
+    private final String CALLBACK_URL;
+    private final String FRONT_URL;
+    private final String CHAPA_KEY;
+    private final String SECRET_KEY;
+
 
     public PaymentHandler(SQLClient jdbcClient, Vertx vertx) {
         this.jdbcClient = jdbcClient;
         this.vertx = vertx;
+        Dotenv dotenv = Dotenv.load(); // Load the .env file
+  this.CALLBACK_URL = dotenv.get("CALLBACK_URL");
+  System.out.println("Callback URL: " + CALLBACK_URL);
+  this.FRONT_URL = dotenv.get("FRONT_URL");
+  System.out.println("Front URL: " + FRONT_URL);
+  this.CHAPA_KEY = dotenv.get("CHAPA_KEY");
+    System.out.println("Chapa Key: " + CHAPA_KEY);
+    this.SECRET_KEY = dotenv.get("SECRET_KEY");
+
+
     }
 
-    private static final String CALLBACK_URL = "https://localhost:4200/login";
-    private static final String FRONT_URL = "https://localhost:4200/success";
-    private static final String CHAPA_KEY = "CHASECK_TEST-Tpq7R6XJTHUlyEJaQpXcW7BPdBOwNxp3";
+    // private static final String CALLBACK_URL = "https://localhost:4200/login";
+    // private static final String FRONT_URL = "https://localhost:4200/success";
+    // private static final String CHAPA_KEY = "CHASECK_TEST-Tpq7R6XJTHUlyEJaQpXcW7BPdBOwNxp3";
 
     public void setupRoutes(Router router) {
         router.post("/checkout").handler(this::handleCheckout);
@@ -57,7 +73,7 @@ public class PaymentHandler {
         String name;
         try {
             Claims claims = Jwts.parser()
-                    .setSigningKey("your-secret-key")
+                    .setSigningKey(SECRET_KEY)
                     .parseClaimsJws(token)
                     .getBody();
             name = claims.getSubject();
@@ -102,25 +118,33 @@ public class PaymentHandler {
             }
         });
     }
-
     private void handlePayment(RoutingContext ctx) {
         JsonObject paymentData = ctx.getBodyAsJson();
         String userId = paymentData.getString("id");
         Double totalAmount = paymentData.getDouble("totalAmount");
+    
         System.out.println("Received amount: " + totalAmount);
         System.out.println("Received user ID: " + userId);
+    
+        // Validate input
         if (userId == null || totalAmount == null) {
             ctx.response().setStatusCode(400)
                     .end(new JsonObject().put("error", "User ID and total amount are required.").encode());
             return;
         }
+    
         getUserById(userId, userResult -> {
             if (userResult.succeeded()) {
                 JsonObject user = userResult.result();
-                // String email = user.getString("email");
+                if (user == null) {
+                    ctx.response().setStatusCode(404)
+                            .end(new JsonObject().put("error", "User not found.").encode());
+                    return;
+                }
+    
                 String firstName = user.getString("name");
                 String lastName = user.getString("username");
-                // String phoneNumber = user.getString("phone_number");
+    
                 processPayment(firstName, totalAmount, lastName, res -> {
                     if (res.succeeded()) {
                         JsonObject responseBody = res.result();
@@ -133,15 +157,16 @@ public class PaymentHandler {
                     }
                 });
             } else {
-                ctx.response().setStatusCode(404).end(new JsonObject().put("error", "User not found.").encode());
+                ctx.response().setStatusCode(404)
+                        .end(new JsonObject().put("error", "User not found.").encode());
             }
         });
     }
-
+    
     private void processPayment(String firstName, Double amount, String lastName,
             Handler<AsyncResult<JsonObject>> resultHandler) {
-        System.out.println(" received firstname from payment: " + firstName + "received amount" + amount
-                + "received lastname" + lastName);
+        System.out.println("Received first name: " + firstName + ", amount: " + amount + ", last name: " + lastName);
+    
         JsonObject paymentRequest = new JsonObject()
                 .put("email", "customer@gmail.com")
                 .put("amount", amount)
@@ -152,9 +177,9 @@ public class PaymentHandler {
                 .put("phone_number", "0912345678")
                 .put("return_url", FRONT_URL)
                 .put("tx_ref", "tx_" + System.currentTimeMillis());
-
+    
         WebClient.create(vertx).postAbs("https://api.chapa.co/v1/transaction/initialize")
-                .putHeader("Authorization", "Bearer " + CHAPA_KEY) // Ensure there's a space after "Bearer"
+                .putHeader("Authorization", "Bearer " + CHAPA_KEY)
                 .putHeader("Content-Type", "application/json")
                 .sendJsonObject(paymentRequest, ar -> {
                     if (ar.succeeded()) {
@@ -165,11 +190,11 @@ public class PaymentHandler {
                         } else {
                             System.out.println("Payment failed with status code: " + ar.result().statusCode());
                             System.out.println("Response body: " + ar.result().bodyAsString());
-                            resultHandler.handle(Future.failedFuture("Payment processing failed."));
+                            resultHandler.handle(Future.failedFuture("Payment processing failed with status: " + ar.result().statusCode()));
                         }
                     } else {
                         System.out.println("Error occurred while sending request to Chapa: " + ar.cause().getMessage());
-                        resultHandler.handle(Future.failedFuture("Payment processing failed."));
+                        resultHandler.handle(Future.failedFuture("Payment processing failed due to request error."));
                     }
                 });
     }

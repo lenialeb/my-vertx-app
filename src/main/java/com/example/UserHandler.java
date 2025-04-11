@@ -14,13 +14,27 @@ import org.mindrot.jbcrypt.BCrypt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.vertx.core.json.JsonArray;
-
+import io.github.cdimascio.dotenv.Dotenv;
 public class UserHandler {
+  
+  
+  
   private final SQLClient jdbcClient;
+  private final String secretKey;
 
-  public UserHandler(SQLClient jdbcClient) {
-    this.jdbcClient = jdbcClient;
-  }
+
+
+
+public UserHandler(SQLClient jdbcClient) {
+  this.jdbcClient = jdbcClient;
+  Dotenv dotenv = Dotenv.load(); // Load the .env file
+  this.secretKey = dotenv.get("SECRET_KEY");
+ 
+  // Load the secret key from the .env file
+  // Dotenv dotenv = Dotenv.load();
+  // this.secretKey = dotenv.get("SECRET_KEY");
+  // System.out.println(secretKey);
+}
 
   public void setupRoutes(Router router) {
     router.get("/userId/:id").handler(this::getusersById);
@@ -164,6 +178,7 @@ private void getUsersPaginated(RoutingContext context) {
     });
   }
   private void login(RoutingContext context) {
+
     JsonObject body = context.getBodyAsJson();
     String username = body.getString("username");
     String password = body.getString("password");
@@ -183,7 +198,8 @@ private void getUsersPaginated(RoutingContext context) {
                         .claim("id", id)
                         .setIssuedAt(new java.util.Date())
                         .setExpiration(new Date(System.currentTimeMillis() + 86400000))
-                        .signWith(SignatureAlgorithm.HS256, "your-secret-key")
+                        .signWith(SignatureAlgorithm.HS256, secretKey)
+                        
                         .compact();
 
                     context.response()
