@@ -19,6 +19,8 @@ public class ProductHandler {
     router.get("/products").handler(this::getProducts);
 
     router.post("/products").handler(this::addProduct);
+    router.post("/review").handler(this::rateProduct);
+
     router.put("/products/:id").handler(this::updateProduct);
     router.get("/productId/:id").handler(this::getProductsById);
     router.get("/productCategory/:category").handler(this::getProductsByCategoy);
@@ -35,11 +37,36 @@ public class ProductHandler {
       }
     });
   }
+  private void rateProduct(RoutingContext context) {
+    JsonObject json = context.getBodyAsJson();
+    if (json == null || !json.containsKey("id") || !json.containsKey("rating")) {
+        context.response().setStatusCode(400).end("Invalid request");
+        return;
+    }
 
+    String productId = json.getString("id");
+    int rating = json.getInteger("rating");
+
+    // Validate rating range
+    if (rating < 1 || rating > 5) {
+        context.response().setStatusCode(400).end("Rating must be between 1 and 5");
+        return;
+    }
+
+    jdbcClient.updateWithParams("UPDATE products SET rating = ? WHERE id = ?", 
+            new JsonArray().add(rating).add(productId), result -> {
+        if (result.succeeded()) {
+            // Return the updated product with its new rating
+            context.response().setStatusCode(200).end(new JsonObject().put("rating", rating).encode());
+        } else {
+            context.response().setStatusCode(500).end("Database update failed");
+        }
+    });
+}
   private void addProduct(RoutingContext context) {
     JsonObject body = context.getBodyAsJson();
-    executeQuery("INSERT INTO products (name, price, description,category, image) VALUES (?, ?,?,?,?)",
-        new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getString("description"))
+    executeQuery("INSERT INTO products (name, price, description,category, image,rating) VALUES (?, ?,?,?,?,?)",
+        new JsonArray().add(body.getString("name")).add(body.getDouble("price")).add(body.getInteger("price")).add(body.getString("description"))
             .add(body.getString("category")).add(body.getString("image")),
         context, "Product added");
   }
@@ -87,7 +114,7 @@ public class ProductHandler {
     int pageSize = Integer.parseInt(context.request().getParam("pageSize", "10"));
     int offset = (page - 1) * pageSize;
 
-    // Updated query to include ORDER BY for alphabetical sorting
+   
     String query = "SELECT * FROM products WHERE LOWER(name) LIKE ? ORDER BY name ASC LIMIT ? OFFSET ?";
     jdbcClient.queryWithParams(query, new JsonArray().add("%" + searchTerm + "%").add(pageSize).add(offset), ar -> {
         if (ar.succeeded()) {
@@ -101,7 +128,7 @@ public class ProductHandler {
                 products.add(product);
             });
 
-            // Get total count
+            
             jdbcClient.queryWithParams("SELECT COUNT(*) AS total FROM products WHERE LOWER(name) LIKE ?",
             new JsonArray().add("%" + searchTerm + "%"), countAr -> {
                 if (countAr.succeeded()) {
