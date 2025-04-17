@@ -151,22 +151,51 @@ private void getUsersPaginated(RoutingContext context) {
         context, "User deleted");
   }
 
-  private void addUser(RoutingContext context) {
-    JsonObject body = context.getBodyAsJson();
-    String hashedPassword = BCrypt.hashpw(body.getString("password"), BCrypt.gensalt());
-    
-    executeQuery("INSERT INTO user (name, username, password) VALUES (?, ?, ?)",
-        new JsonArray()
-            .add(body.getString("name"))
-            .add(body.getString("username"))
-            .add(hashedPassword),
-        context, "User added");
-    
-    context.response()
-        .putHeader("Content-Type", "application/json")
-        .end(new JsonObject().put("message", "Registered successfully").encode());
-}
+//   private void addUser(RoutingContext context) {
+   
+//     JsonObject body = context.getBodyAsJson();
+//     String hashedPassword = BCrypt.hashpw(body.getString("password"), BCrypt.gensalt());
 
+    
+//     executeQuery("INSERT INTO user (name, username, password) VALUES (?, ?, ?)",
+//         new JsonArray()
+//             .add(body.getString("name"))
+//             .add(body.getString("username"))
+//             .add(hashedPassword),
+//         context, "User added");
+    
+//     context.response()
+//         .putHeader("Content-Type", "application/json")
+//         .end(new JsonObject().put("message", "Registered successfully").encode());
+// }
+private void addUser(RoutingContext context) {
+  JsonObject body = context.getBodyAsJson();
+  String hashedPassword = BCrypt.hashpw(body.getString("password"), BCrypt.gensalt());
+
+  // Get the role from the request body, default to 'user' if not provided
+  String role = body.getString("role", "user"); // Default to "user"
+
+  // Validate role (optional: you can enforce to accept only specific roles)
+  if (!role.equals("admin") && !role.equals("user")) {
+      context.response()
+          .setStatusCode(400) // Bad Request
+          .putHeader("Content-Type", "application/json")
+          .end(new JsonObject().put("message", "Invalid role specified").encode());
+      return;
+  }
+
+  executeQuery("INSERT INTO user (name, username, password, role) VALUES (?, ?, ?, ?)",
+      new JsonArray()
+          .add(body.getString("name"))
+          .add(body.getString("username"))
+          .add(hashedPassword)
+          .add(role), // Include the role in the query
+      context, "User added");
+
+  context.response()
+      .putHeader("Content-Type", "application/json")
+      .end(new JsonObject().put("message", "Registered successfully").encode());
+}
   private void getusersById(RoutingContext context) {
     String id = context.pathParam("id");
     jdbcClient.queryWithParams("SELECT * FROM user WHERE id = ?", new JsonArray().add(id), res -> {
@@ -192,10 +221,13 @@ private void getUsersPaginated(RoutingContext context) {
                 if (BCrypt.checkpw(password, hashedPassword)) {
                     String name = user.getString("name");
                     String id = user.getString("id");
+                    String role = user.getString("role");
+
                     String token = Jwts.builder()
                         .setSubject(username)
                         .claim("name", name)
                         .claim("id", id)
+                        .claim("role",role)
                         .setIssuedAt(new java.util.Date())
                         .setExpiration(new Date(System.currentTimeMillis() + 86400000))
                         .signWith(SignatureAlgorithm.HS256, secretKey)
@@ -212,6 +244,7 @@ private void getUsersPaginated(RoutingContext context) {
                                 .put("id", id)
                                 .put("username", username)
                                 .put("name", name))
+                                .put("role",role)
                             .encode());
                 } else {
                     context.response()

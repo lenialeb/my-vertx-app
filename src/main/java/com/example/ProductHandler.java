@@ -5,6 +5,9 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.sqlclient.Tuple;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.sql.SQLClient;
+
+import java.util.Set;
+
 import io.vertx.core.json.JsonArray;
 
 public class ProductHandler {
@@ -108,48 +111,60 @@ public class ProductHandler {
   }
 
   private void getProductsPaginated(RoutingContext context) {
-    String searchTerm = context.request().getParam("search", "").toLowerCase();
+        String searchTerm = context.request().getParam("search", "").toLowerCase();
+        int page = Integer.parseInt(context.request().getParam("page", "1"));
+        int pageSize = Integer.parseInt(context.request().getParam("pageSize", "10"));
+        int offset = (page - 1) * pageSize;
 
-    int page = Integer.parseInt(context.request().getParam("page", "1"));
-    int pageSize = Integer.parseInt(context.request().getParam("pageSize", "10"));
-    int offset = (page - 1) * pageSize;
+        String sortBy = context.request().getParam("sortBy", "name");
+        String sortOrder = context.request().getParam("sortOrder", "asc").equals("desc") ? "DESC" : "ASC";
 
-   
-    String query = "SELECT * FROM products WHERE LOWER(name) LIKE ? ORDER BY name ASC LIMIT ? OFFSET ?";
-    jdbcClient.queryWithParams(query, new JsonArray().add("%" + searchTerm + "%").add(pageSize).add(offset), ar -> {
-        if (ar.succeeded()) {
-            JsonArray products = new JsonArray();
-            ar.result().getRows().forEach(row -> {
-                JsonObject product = new JsonObject()
-                        .put("id", row.getInteger("id"))
-                        .put("name", row.getString("name"))
-                        .put("price", row.getDouble("price"))
-                        .put("description", row.getString("description"));
-                products.add(product);
-            });
-
-            
-            jdbcClient.queryWithParams("SELECT COUNT(*) AS total FROM products WHERE LOWER(name) LIKE ?",
-            new JsonArray().add("%" + searchTerm + "%"), countAr -> {
-                if (countAr.succeeded()) {
-                    int total = countAr.result().getRows().get(0).getInteger("total");
-                    JsonObject response = new JsonObject()
-                            .put("products", products)
-                            .put("total", total)
-                            .put("page", page)
-                            .put("pageSize", pageSize);
-                    context.response()
-                            .putHeader("Content-Type", "application/json")
-                            .end(response.encode());
-                } else {
-                    context.response().setStatusCode(500).end("Error counting products");
-                }
-            });
-        } else {
-            context.response().setStatusCode(500).end("Error fetching products");
+        Set<String> validSortFields = Set.of("name", "price");
+        if (!validSortFields.contains(sortBy)) {
+            sortBy = "name"; // Default to name if invalid
         }
-    });
-}
+
+        String query = "SELECT * FROM products WHERE LOWER(name) LIKE ? ORDER BY " + sortBy + " " + sortOrder + " LIMIT ? OFFSET ?";
+        // Log the query
+
+        jdbcClient.queryWithParams(query, new JsonArray().add("%" + searchTerm + "%").add(pageSize).add(offset), ar -> {
+            if (ar.succeeded()) {
+                JsonArray products = new JsonArray();
+                ar.result().getRows().forEach(row -> {
+                    JsonObject product = new JsonObject()
+                            .put("id", row.getInteger("id"))
+                            .put("name", row.getString("name"))
+                            .put("price", row.getDouble("price"))
+                            .put("description", row.getString("description"));
+                    products.add(product);
+                });
+               
+
+                // Count total products for pagination
+                jdbcClient.queryWithParams("SELECT COUNT(*) AS total FROM products WHERE LOWER(name) LIKE ?",
+                new JsonArray().add("%" + searchTerm + "%"), countAr -> {
+                    if (countAr.succeeded()) {
+                        int total = countAr.result().getRows().get(0).getInteger("total");
+                        JsonObject response = new JsonObject()
+                                .put("products", products)
+                                .put("total", total)
+                                .put("page", page)
+                                .put("pageSize", pageSize);
+                        context.response()
+                                .putHeader("Content-Type", "application/json")
+                                .end(response.encode());
+                    } else {
+                        context.response().setStatusCode(500).end("Error counting products");
+                    }
+                });
+            } else {
+                System.err.println("Error fetching products: " + ar.cause());
+                context.response().setStatusCode(500).end("Error fetching products: " + ar.cause().getMessage());
+            }
+        });
+    }
+
+
 
   private void getProductsById(RoutingContext context) {
     String id = context.pathParam("id");
