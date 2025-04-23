@@ -23,14 +23,13 @@ public class CommentHandler {
 
     private void getCommentById(RoutingContext context) {
         String productId = context.request().getParam("id");
-        String sql = "SELECT * FROM comments WHERE product_id = ?";
+        String sql = "SELECT * FROM comment WHERE product_id = ?";
     
         jdbcClient.queryWithParams(sql, new JsonArray().add(Integer.parseInt(productId)), result -> {
             if (result.succeeded()) {
                 JsonArray comments = new JsonArray();
                 result.result().getRows().forEach(comments::add);
     
-                // Query to count the total number of comments for the product
                 String countSql = "SELECT COUNT(*) AS total FROM comments WHERE product_id = ?";
                 jdbcClient.queryWithParams(countSql, new JsonArray().add(Integer.parseInt(productId)), countResult -> {
                     if (countResult.succeeded()) {
@@ -62,6 +61,7 @@ public class CommentHandler {
 
     private void postComment(RoutingContext context) {
         String productId = context.request().getParam("id");
+        System.out.println(productId);
         JsonObject comment = context.getBodyAsJson();
     
         // Fetch the user ID from the incoming comment JSON
@@ -80,10 +80,10 @@ public class CommentHandler {
                 String userName = user.getString("name");
     
                 // Prepare the SQL for inserting the comment
-                String sql = "INSERT INTO comments (product_id, user_name, content) VALUES (?, ?, ?)";
+                String sql = "INSERT INTO comment (product_id, user_id, content) VALUES (?, ?, ?)";
                 jdbcClient.updateWithParams(sql, new JsonArray()
                         .add(Integer.parseInt(productId))
-                        .add(userName) // Use fetched user name
+                        .add(userId) // Use fetched user name
                         .add(comment.getString("content")), // Content from the request
                     result -> {
                         if (result.succeeded()) {

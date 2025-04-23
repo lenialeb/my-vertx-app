@@ -27,15 +27,11 @@ public class UserHandler {
 
 public UserHandler(SQLClient jdbcClient) {
   this.jdbcClient = jdbcClient;
-  Dotenv dotenv = Dotenv.load(); // Load the .env file
+  Dotenv dotenv = Dotenv.load(); 
   this.secretKey = dotenv.get("SECRET_KEY");
  
-  // Load the secret key from the .env file
-  // Dotenv dotenv = Dotenv.load();
-  // this.secretKey = dotenv.get("SECRET_KEY");
-  // System.out.println(secretKey);
+  
 }
-
   public void setupRoutes(Router router) {
     router.get("/userId/:id").handler(this::getusersById);
 
@@ -105,7 +101,6 @@ private void getUsersPaginated(RoutingContext context) {
               }
               usersArray.add(row);
           });
-
           // Get total count for pagination without limit
           jdbcClient.queryWithParams("SELECT COUNT(*) AS total FROM user WHERE LOWER(name) LIKE ?", 
               new JsonArray().add("%" + searchTerm + "%"), countRes -> {
@@ -118,7 +113,6 @@ private void getUsersPaginated(RoutingContext context) {
                               .put("total", total)
                               .put("page", page)
                               .put("pageSize", pageSize);
-
                       context.response()
                               .putHeader("Content-Type", "application/json")
                               .end(response.encodePrettily());
@@ -173,16 +167,20 @@ private void addUser(RoutingContext context) {
   String hashedPassword = BCrypt.hashpw(body.getString("password"), BCrypt.gensalt());
 
   // Get the role from the request body, default to 'user' if not provided
-  String role = body.getString("role", "user"); // Default to "user"
+  // Default to "user"
+  String role = body.getString("role", "user");
+  if(role == null){
+    role="user";
+  }
 
   // Validate role (optional: you can enforce to accept only specific roles)
-  if (!role.equals("admin") && !role.equals("user")) {
-      context.response()
-          .setStatusCode(400) // Bad Request
-          .putHeader("Content-Type", "application/json")
-          .end(new JsonObject().put("message", "Invalid role specified").encode());
-      return;
-  }
+  // if (!role.equals("admin") && !role.equals("user")) {
+  //     context.response()
+  //         .setStatusCode(400) // Bad Request
+  //         .putHeader("Content-Type", "application/json")
+  //         .end(new JsonObject().put("message", "Invalid role specified").encode());
+  //     return;
+  // }
 
   executeQuery("INSERT INTO user (name, username, password, role) VALUES (?, ?, ?, ?)",
       new JsonArray()

@@ -124,7 +124,7 @@ public class ProductHandler {
             sortBy = "name"; // Default to name if invalid
         }
 
-        String query = "SELECT * FROM products WHERE LOWER(name) LIKE ? ORDER BY " + sortBy + " " + sortOrder + " LIMIT ? OFFSET ?";
+        String query = "SELECT id, name, price, descripion FROM products WHERE LOWER(name) LIKE ? ORDER BY " + sortBy + " " + sortOrder + " LIMIT ? OFFSET ?";
         // Log the query
 
         jdbcClient.queryWithParams(query, new JsonArray().add("%" + searchTerm + "%").add(pageSize).add(offset), ar -> {
