@@ -4,6 +4,9 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.sql.SQLClient;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -23,34 +26,27 @@ public class CommentHandler {
 
     private void getCommentById(RoutingContext context) {
         String productId = context.request().getParam("id");
-        String sql = "SELECT * FROM comment WHERE product_id = ?";
+        
+        
+        String sql = "SELECT c.*, u.name AS userName FROM comment c " +
+                     "JOIN user u ON c.user_id = u.id " +
+                     "WHERE c.product_id = ?";
     
         jdbcClient.queryWithParams(sql, new JsonArray().add(Integer.parseInt(productId)), result -> {
             if (result.succeeded()) {
-                JsonArray comments = new JsonArray();
-                result.result().getRows().forEach(comments::add);
+                JsonArray comments = new JsonArray(result.result().getRows());
+                System.out.println("comments"+ comments);
+                int totalCount = comments.size();
     
-                String countSql = "SELECT COUNT(*) AS total FROM comments WHERE product_id = ?";
-                jdbcClient.queryWithParams(countSql, new JsonArray().add(Integer.parseInt(productId)), countResult -> {
-                    if (countResult.succeeded()) {
-                        int totalCount = countResult.result().getRows().get(0).getInteger("total");
-    
-                        // Combine comments and total count into a response object
-                        JsonObject response = new JsonObject()
+                context.response()
+                        .putHeader("Content-Type", "application/json")
+                        .end(new JsonObject()
                                 .put("total_comments", totalCount)
-                                .put("comments", comments);
-    
-                        context.response()
-                                .putHeader("Content-Type", "application/json")
-                                .end(response.encode());
-                    } else {
-                        context.response()
-                                .setStatusCode(500)
-                                .putHeader("Content-Type", "application/json")
-                                .end(new JsonObject().put("error", countResult.cause().getMessage()).encode());
-                    }
-                });
+                                .put("comments", comments)
+                                .encode());
             } else {
+             
+                System.err.println("Error fetching comments: " + result.cause().getMessage());
                 context.response()
                         .setStatusCode(500)
                         .putHeader("Content-Type", "application/json")
@@ -58,28 +54,16 @@ public class CommentHandler {
             }
         });
     }
-
     private void postComment(RoutingContext context) {
         String productId = context.request().getParam("id");
         System.out.println(productId);
         JsonObject comment = context.getBodyAsJson();
     
-        // Fetch the user ID from the incoming comment JSON
-        String userId = comment.getString("id"); // Assuming 'id' is the user ID
+       
+        String userId = comment.getString("id"); 
     
-        getUserById(userId, userResult -> {
-            if (userResult.succeeded()) {
-                JsonObject user = userResult.result();
-                if (user == null) {
-                    context.response().setStatusCode(404)
-                            .end(new JsonObject().put("error", "User not found.").encode());
-                    return;
-                }
     
-                // Get the user's name
-                String userName = user.getString("name");
-    
-                // Prepare the SQL for inserting the comment
+               
                 String sql = "INSERT INTO comment (product_id, user_id, content) VALUES (?, ?, ?)";
                 jdbcClient.updateWithParams(sql, new JsonArray()
                         .add(Integer.parseInt(productId))
@@ -98,23 +82,8 @@ public class CommentHandler {
                                     .end(new JsonObject().put("error", "Failed to add comment").encode());
                         }
                     });
-            } else {
-                // Handle error if user query fails
-                context.response().setStatusCode(500)
-                        .end(new JsonObject().put("error", "Failed to retrieve user information").encode());
-            }
-        });
-    }
-   private void getUserById(String userId, Handler<AsyncResult<JsonObject>> resultHandler) {
-        jdbcClient.queryWithParams("SELECT * FROM user WHERE id = ?", new JsonArray().add(userId), res -> {
-            if (res.succeeded() && res.result().getRows().size() > 0) {
-
-                JsonObject user = res.result().getRows().get(0);
-                resultHandler.handle(Future.succeededFuture(user));
-            } else {
-                resultHandler.handle(Future.failedFuture("User not found."));
-            }
-        });
-    }
+            } 
+        
+    
 
 }
