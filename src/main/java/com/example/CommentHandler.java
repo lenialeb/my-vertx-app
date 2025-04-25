@@ -7,6 +7,9 @@ import io.vertx.ext.sql.SQLClient;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.cdimascio.dotenv.Dotenv;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -14,9 +17,12 @@ import io.vertx.core.json.JsonArray;
 
 public class CommentHandler {
     private final SQLClient jdbcClient;
+    private final String secretKey;
 
     public CommentHandler(SQLClient jdbcClient) {
         this.jdbcClient = jdbcClient;
+        Dotenv dotenv = Dotenv.load();
+    this.secretKey = dotenv.get("SECRET_KEY");
     }
 
     public void setupRoutes(Router router) {
@@ -55,20 +61,23 @@ public class CommentHandler {
         });
     }
     private void postComment(RoutingContext context) {
-        String productId = context.request().getParam("id");
-        System.out.println(productId);
-        JsonObject comment = context.getBodyAsJson();
-    
-       
-        String userId = comment.getString("id"); 
-    
+        String authToken = context.request().getHeader("Authorization");
+      
+System.out.println("token"+ authToken);
+JsonObject body = context.getBodyAsJson();
+String productId = context.request().getParam("id");
+String comment = body.getString("content");
+
+
+        String userId = getUserId(authToken);
+
     
                
                 String sql = "INSERT INTO comment (product_id, user_id, content) VALUES (?, ?, ?)";
                 jdbcClient.updateWithParams(sql, new JsonArray()
                         .add(Integer.parseInt(productId))
-                        .add(userId) // Use fetched user name
-                        .add(comment.getString("content")), // Content from the request
+                        .add(userId) 
+                        .add(comment), 
                     result -> {
                         if (result.succeeded()) {
                             context.response()
@@ -84,6 +93,27 @@ public class CommentHandler {
                     });
             } 
         
-    
-
+     private String getUserId(String token) {
+    try {
+      Claims claims = Jwts.parser()
+          .setSigningKey(secretKey)
+          .parseClaimsJws(token.substring(7)) // Remove "Bearer " prefix
+          .getBody();
+      return claims.get("id", String.class);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+  private boolean isValidToken(String token) {
+    if (token == null || !token.startsWith("Bearer ")) {
+      return false;
+    }
+    token = token.substring(7);
+    try {
+      Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
 }
