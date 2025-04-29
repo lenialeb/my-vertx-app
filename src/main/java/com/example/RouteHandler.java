@@ -45,7 +45,9 @@ public class RouteHandler {
         .exposedHeaders(new HashSet<>(Arrays.asList("Authorization")))); 
     router.route().handler(BodyHandler.create());
  
-  
+    router.get("/").handler(ctx -> {
+      ctx.response().end("Hello, World!");
+  });
   
     UserHandler userHandler = new UserHandler(jdbcClient);
     userHandler.setupRoutes(router);
