@@ -2,7 +2,6 @@ package com.example;
 
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.sqlclient.Tuple;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.sql.SQLClient;
 
@@ -26,10 +25,8 @@ public class ProductHandler {
   public void setupRoutes(Router router) {
     router.get("/productsP").handler(this::getProductsPaginated);
     router.get("/products").handler(this::getProducts);
-
     router.post("/products").handler(this::addProduct);
     router.post("/review").handler(this::rateProduct);
-
     router.put("/products/:id").handler(this::updateProduct);
     router.get("/productId/:id").handler(this::getProductsById);
     router.get("/productCategory/:category").handler(this::getProductsByCategoy);
