@@ -5,7 +5,7 @@ FROM openjdk:11-jre-slim
 WORKDIR /app
 
 # Copy the JAR file from your target directory to the container
-COPY target/my-vertx-app-1.0-SNAPSHOT.jar app.jar
+COPY target/my-vertx-app-1.0-SNAPSHOT.jar 
 
 # Command to run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
